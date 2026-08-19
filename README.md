@@ -1,98 +1,70 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Stackwell
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A multi-tenant SaaS backend boilerplate built with NestJS, MongoDB, and AWS. Demonstrates tenant isolation, JWT auth with RBAC, Stripe billing, per-tenant rate limiting, and serverless deployment — the pieces a real multi-tenant product needs beyond single-tenant CRUD.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Status: in progress.** This README is updated as each module lands; see the module list below for current coverage.
 
-## Description
+## Why this project
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Most backend portfolio projects are single-tenant CRUD apps. Stackwell instead tackles the problems that show up once you have to serve multiple customers from one deployment: keeping their data apart, scoping auth and rate limits per customer, and billing them — while staying deployable at zero infrastructure cost.
 
-## Project setup
+## Architecture
 
-```bash
-$ npm install
-```
+### Tenant isolation
 
-## Compile and run the project
+Stackwell uses a **shared database, tenant-scoped by field** rather than a database-per-tenant model. Every tenant-owned document carries a `tenantId`, and a request-scoped middleware reads the tenant from the authenticated JWT and injects it into a base repository helper that every query goes through — so it's structurally hard to write a query that leaks across tenants.
 
-```bash
-# development
-$ npm run start
+This is a deliberate tradeoff:
+- **Pro**: one connection pool, one schema to migrate, simpler ops, cheaper to run on a free-tier MongoDB Atlas cluster.
+- **Con**: weaker isolation guarantee than DB-per-tenant (a bug in the scoping layer is a cross-tenant leak, not just a bug). Acceptable here because the middleware is centralized and unit-tested rather than left to each query author.
 
-# watch mode
-$ npm run start:dev
+### Modules
 
-# production mode
-$ npm run start:prod
-```
+| Module | Responsibility | Status |
+|---|---|---|
+| `config` | Zod-validated environment config, Mongoose connection | Done |
+| `tenants` | Tenant model, signup/onboarding, plan & usage | Planned |
+| `auth` | JWT auth (access + refresh), guards | Planned |
+| `common` | Tenant-context middleware, RBAC guard, rate-limit config | Planned |
+| `users` | User CRUD, invite flow, roles (owner/admin/member) | Planned |
+| `billing` | Stripe checkout + webhooks, plan sync | Planned |
+| `infra` (CDK) | Lambda + API Gateway deployment | Planned |
 
-## Run tests
+### Deployment model
+
+Deploys to **AWS Lambda behind API Gateway** (via `serverless-http` wrapping the Nest app), not an always-on Fargate/EC2 instance — this keeps the deployment inside the AWS always-free tier instead of accruing an hourly compute cost. Infrastructure is defined as AWS CDK (TypeScript) under `infra/` but is **not deployed automatically** — `cdk deploy` is a manual, explicit step so nothing incurs cost without you choosing to run it.
+
+## Local development
+
+Requires Docker (for MongoDB + Redis) and Node 20+.
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env   # fill in JWT secrets, Stripe test keys
+docker compose up -d   # starts MongoDB and Redis
+npm install
+npm run start:dev
 ```
 
-## Deployment
+## Testing
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Built test-first (Red-Green-Refactor) per module.
 
 ```bash
-$ npm install -g mau
-$ mau deploy
+npm run test        # unit tests
+npm run test:e2e    # end-to-end tests
+npm run test:cov    # coverage report (target: 80%+ on changed files)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Cost notes
 
-## Resources
+Everything here is designed to run at **$0**:
+- MongoDB Atlas free tier (M0) or local Docker for dev.
+- Redis via a free tier (e.g. Upstash) or local Docker for dev.
+- Stripe in **test mode** — no real charges.
+- AWS Lambda + API Gateway within the always-free monthly request/compute allowance.
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Deploying (`cdk deploy`) is manual and optional; nothing here spins up paid infrastructure on its own.
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT
