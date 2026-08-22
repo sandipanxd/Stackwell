@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv, EnvConfig } from './config/env.validation';
+import { TenantsModule } from './modules/tenants/tenants.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { validateEnv, EnvConfig } from './config/env.validation';
         uri: config.get('MONGODB_URI', { infer: true }),
       }),
     }),
+    TenantsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
