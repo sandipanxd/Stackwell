@@ -1,0 +1,63 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Read(**)",
+      "Bash(npm run *)",
+      "Bash(npm test*)",
+      "Bash(npx prettier *)",
+      "Bash(npx eslint *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git checkout -b *)",
+      "Bash(git add *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(secrets/**)",
+      "Bash(git push --force *)",
+      "Bash(git push origin main)",
+      "Bash(rm -rf *)",
+      "Bash(* --no-verify *)",
+      "Bash(curl * | bash *)",
+      "Bash(wget * | sh *)",
+      "Edit(.github/workflows/**)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(*deploy*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-bypass.sh", "timeout": 10 },
+          { "type": "command", "command": ".claude/hooks/block-direct-push.sh", "timeout": 10 },
+          { "type": "command", "command": ".claude/hooks/enforce-conventional-commit.sh", "timeout": 10 },
+          { "type": "command", "command": ".claude/hooks/enforce-coverage.sh", "timeout": 60 }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secrets.sh", "timeout": 10 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/format-on-edit.sh", "timeout": 30 },
+          { "type": "command", "command": ".claude/hooks/test-on-edit.sh", "timeout": 120 },
+          { "type": "command", "command": ".claude/hooks/session-log.sh", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

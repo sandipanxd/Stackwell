@@ -6,3 +6,4 @@ coverage/
 *.log
 .DS_Store
 cdk.out/
+.claude/settings.local.json

@@ -1,0 +1,33 @@
+{
+  "name": "Sandipan",
+  "role": "Backend Developer",
+  "experience": "2+ years",
+  "primarySkills": [
+    "TypeScript",
+    "Node.js",
+    "NestJS",
+    "MongoDB",
+    "AWS"
+  ],
+  "expertise": {
+    "language": "TypeScript (advanced)",
+    "runtime": "Node.js (2+ years experience)",
+    "framework": "NestJS (primary backend framework)",
+    "database": "MongoDB (primary datastore)",
+    "cloud": "AWS (basic knowledge)"
+  },
+  "preferredStack": {
+    "language": "TypeScript",
+    "runtime": "Node.js",
+    "backend": "NestJS",
+    "datastore": "MongoDB",
+    "cloud": "AWS"
+  },
+  "developmentFocus": "Full-stack backend development with emphasis on scalable, type-safe applications",
+  "preferences": {
+    "codeStyle": "Type-safe (TypeScript-first)",
+    "asyncPatterns": "Modern async/await",
+    "apiDesign": "RESTful",
+    "cloudConsiderations": true
+  }
+}
