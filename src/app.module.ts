@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv, EnvConfig } from './config/env.validation';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
       }),
     }),
     TenantsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
