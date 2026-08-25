@@ -77,16 +77,16 @@ describe('AuthController', () => {
   });
 
   describe('refresh', () => {
-    it('delegates to the service with a valid payload', async () => {
-      service.refresh.mockResolvedValue({ accessToken: 'new-token' });
+    it('delegates to the service with a valid payload', () => {
+      service.refresh.mockReturnValue({ accessToken: 'new-token' });
 
-      const result = await controller.refresh({ refreshToken: 'valid-token' });
+      const result = controller.refresh({ refreshToken: 'valid-token' });
 
       expect(result).toEqual({ accessToken: 'new-token' });
     });
 
-    it('rejects an invalid payload without calling the service', async () => {
-      await expect(controller.refresh({ refreshToken: '' })).rejects.toThrow(
+    it('rejects an invalid payload without calling the service', () => {
+      expect(() => controller.refresh({ refreshToken: '' })).toThrow(
         BadRequestException,
       );
       expect(service.refresh).not.toHaveBeenCalled();

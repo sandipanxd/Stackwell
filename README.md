@@ -23,9 +23,10 @@ This is a deliberate tradeoff:
 | Module | Responsibility | Status |
 |---|---|---|
 | `config` | Zod-validated environment config, Mongoose connection | Done |
-| `tenants` | Tenant model, signup/onboarding, plan & usage | Planned |
-| `auth` | JWT auth (access + refresh), guards | Planned |
-| `common` | Tenant-context middleware, RBAC guard, rate-limit config | Planned |
+| `tenants` | Tenant model, signup/onboarding, plan & usage | Done |
+| `auth` | JWT auth (access + refresh), guards | Done |
+| `common` | Request-scoped tenant context + scoped query helper | Done |
+| `docs` | Swagger UI at `/docs`, Bearer auth wired for protected routes | Done |
 | `users` | User CRUD, invite flow, roles (owner/admin/member) | Planned |
 | `billing` | Stripe checkout + webhooks, plan sync | Planned |
 | `infra` (CDK) | Lambda + API Gateway deployment | Planned |
@@ -44,6 +45,8 @@ docker compose up -d   # starts MongoDB and Redis
 npm install
 npm run start:dev
 ```
+
+Once running, browse and exercise the API at [http://localhost:3000/docs](http://localhost:3000/docs) (Swagger UI). For protected endpoints: call `/auth/login`, copy the `accessToken` from the response, click **Authorize** and paste it in, then any protected route (e.g. `/auth/me`) works directly from the UI.
 
 ## Testing
 
