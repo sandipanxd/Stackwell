@@ -93,7 +93,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'Returns a new accessToken' })
   @ApiResponse({ status: 400, description: 'Invalid payload' })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-  async refresh(@Body() body: unknown) {
+  refresh(@Body() body: unknown) {
     const result = refreshSchema.safeParse(body);
     if (!result.success) {
       throw new BadRequestException(result.error.issues);

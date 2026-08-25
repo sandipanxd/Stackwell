@@ -148,7 +148,7 @@ describe('AuthService', () => {
   });
 
   describe('refresh', () => {
-    it('issues a new access token for a valid refresh token', async () => {
+    it('issues a new access token for a valid refresh token', () => {
       jwtService.verify.mockReturnValue({
         sub: 'user-id',
         tenantId: 'tenant-id',
@@ -158,7 +158,7 @@ describe('AuthService', () => {
       });
       jwtService.sign.mockReturnValue('new-access-token');
 
-      const result = await service.refresh({
+      const result = service.refresh({
         refreshToken: 'valid-refresh-token',
       });
 
@@ -172,14 +172,14 @@ describe('AuthService', () => {
       expect(result).toEqual({ accessToken: 'new-access-token' });
     });
 
-    it('throws UnauthorizedException for an invalid refresh token', async () => {
+    it('throws UnauthorizedException for an invalid refresh token', () => {
       jwtService.verify.mockImplementation(() => {
         throw new Error('invalid');
       });
 
-      await expect(
-        service.refresh({ refreshToken: 'bad-token' }),
-      ).rejects.toThrow(UnauthorizedException);
+      expect(() => service.refresh({ refreshToken: 'bad-token' })).toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });

@@ -18,8 +18,11 @@ describe('validateEnv', () => {
   });
 
   it('throws when a required var is missing', () => {
-    const { MONGODB_URI: _omit, ...incomplete } = validConfig;
-    expect(() => validateEnv(incomplete)).toThrow('Invalid environment configuration');
+    const incomplete: Record<string, unknown> = { ...validConfig };
+    delete incomplete.MONGODB_URI;
+    expect(() => validateEnv(incomplete)).toThrow(
+      'Invalid environment configuration',
+    );
   });
 
   it('throws when JWT secrets are shorter than 32 characters', () => {

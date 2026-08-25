@@ -89,7 +89,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async refresh(dto: RefreshDto): Promise<{ accessToken: string }> {
+  refresh(dto: RefreshDto): { accessToken: string } {
     let verified: AccessTokenPayload;
     try {
       verified = this.jwtService.verify(dto.refreshToken, {

@@ -40,7 +40,7 @@ describe('TenantsController', () => {
     });
 
     it('rejects a payload missing required fields', async () => {
-      await expect(controller.signup({ name: '' } as never)).rejects.toThrow(
+      await expect(controller.signup({ name: '' })).rejects.toThrow(
         BadRequestException,
       );
       expect(service.create).not.toHaveBeenCalled();
