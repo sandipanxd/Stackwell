@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { validateEnv, EnvConfig } from './config/env.validation';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CommonModule } from './modules/common/common.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuthModule } from './modules/auth/auth.module';
         uri: config.get('MONGODB_URI', { infer: true }),
       }),
     }),
+    CommonModule,
     TenantsModule,
     AuthModule,
   ],

@@ -2,17 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { TenantContextService } from '../common/tenant-context.service';
+import { RequestWithUser } from '../common/request-with-user';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let service: { register: jest.Mock; login: jest.Mock; refresh: jest.Mock };
+  let tenantContext: { getTenantId: jest.Mock };
 
   beforeEach(async () => {
     service = { register: jest.fn(), login: jest.fn(), refresh: jest.fn() };
+    tenantContext = { getTenantId: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: service }],
+      providers: [
+        { provide: AuthService, useValue: service },
+        { provide: TenantContextService, useValue: tenantContext },
+      ],
     }).compile();
 
     controller = moduleRef.get(AuthController);
@@ -83,6 +90,23 @@ describe('AuthController', () => {
         BadRequestException,
       );
       expect(service.refresh).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('me', () => {
+    it('returns the current user identity scoped to their tenant', () => {
+      tenantContext.getTenantId.mockReturnValue('tenant-id');
+      const req = {
+        user: { userId: 'user-id', tenantId: 'tenant-id', role: 'owner' },
+      } as RequestWithUser;
+
+      const result = controller.me(req);
+
+      expect(result).toEqual({
+        userId: 'user-id',
+        role: 'owner',
+        tenantId: 'tenant-id',
+      });
     });
   });
 });

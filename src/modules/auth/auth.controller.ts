@@ -1,10 +1,24 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { loginSchema, refreshSchema, registerSchema } from './dto/auth.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { TenantContextService } from '../common/tenant-context.service';
+import { RequestWithUser } from '../common/request-with-user';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   @Post('register')
   async register(@Body() body: unknown) {
@@ -31,5 +45,15 @@ export class AuthController {
       throw new BadRequestException(result.error.issues);
     }
     return this.authService.refresh(result.data);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@Req() req: RequestWithUser) {
+    return {
+      userId: req.user!.userId,
+      role: req.user!.role,
+      tenantId: this.tenantContext.getTenantId(),
+    };
   }
 }
