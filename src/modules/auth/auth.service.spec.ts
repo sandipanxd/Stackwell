@@ -51,14 +51,14 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('creates a user with a hashed password when the tenant exists', async () => {
+    it('makes the first user registered for a tenant the owner', async () => {
       tenantsService.findBySlug.mockResolvedValue(tenant);
       userModel.findOne.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
       userModel.create.mockResolvedValue({
         tenantId: tenant._id,
         email: 'owner@acme.com',
-        role: 'member',
+        role: 'owner',
       });
 
       const result = await service.register({
@@ -67,14 +67,43 @@ describe('AuthService', () => {
         password: 'password123',
       });
 
+      expect(userModel.findOne).toHaveBeenCalledWith({ tenantId: tenant._id });
       expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
       expect(userModel.create).toHaveBeenCalledWith({
         tenantId: tenant._id,
         email: 'owner@acme.com',
         passwordHash: 'hashed-password',
-        role: 'member',
+        role: 'owner',
       });
       expect(result.email).toBe('owner@acme.com');
+    });
+
+    it('makes subsequent registrations for the same tenant regular members', async () => {
+      tenantsService.findBySlug.mockResolvedValue(tenant);
+      userModel.findOne.mockResolvedValue({
+        tenantId: tenant._id,
+        email: 'owner@acme.com',
+        role: 'owner',
+      });
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
+      userModel.create.mockResolvedValue({
+        tenantId: tenant._id,
+        email: 'second@acme.com',
+        role: 'member',
+      });
+
+      await service.register({
+        tenantSlug: 'acme',
+        email: 'second@acme.com',
+        password: 'password123',
+      });
+
+      expect(userModel.create).toHaveBeenCalledWith({
+        tenantId: tenant._id,
+        email: 'second@acme.com',
+        passwordHash: 'hashed-password',
+        role: 'member',
+      });
     });
 
     it('throws NotFoundException when the tenant does not exist', async () => {

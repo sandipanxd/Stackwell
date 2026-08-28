@@ -7,6 +7,7 @@ import { validateEnv, EnvConfig } from './config/env.validation';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CommonModule } from './modules/common/common.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CommonModule } from './modules/common/common.module';
     CommonModule,
     TenantsModule,
     AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

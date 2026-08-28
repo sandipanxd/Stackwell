@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
+import { Types } from 'mongoose';
 import { RequestWithUser } from './request-with-user';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -23,7 +24,7 @@ export class TenantContextService {
 
   scope<T extends Record<string, unknown>>(
     filter: T,
-  ): T & { tenantId: string } {
-    return { ...filter, tenantId: this.getTenantId() };
+  ): T & { tenantId: Types.ObjectId } {
+    return { ...filter, tenantId: new Types.ObjectId(this.getTenantId()) };
   }
 }

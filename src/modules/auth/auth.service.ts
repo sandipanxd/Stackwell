@@ -37,12 +37,13 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const existingUser = await this.userModel.findOne({ tenantId: tenant._id });
 
     return this.userModel.create({
       tenantId: tenant._id,
       email: dto.email,
       passwordHash,
-      role: 'member',
+      role: existingUser ? 'member' : 'owner',
     });
   }
 
