@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TenantContextService } from '../common/tenant-context.service';
@@ -20,7 +21,10 @@ describe('AuthController', () => {
         { provide: AuthService, useValue: service },
         { provide: TenantContextService, useValue: tenantContext },
       ],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = moduleRef.get(AuthController);
   });

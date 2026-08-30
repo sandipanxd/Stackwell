@@ -1,5 +1,12 @@
-import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { TenantsService } from './tenants.service';
 import { createTenantSchema } from './dto/create-tenant.dto';
 
@@ -8,6 +15,7 @@ import { createTenantSchema } from './dto/create-tenant.dto';
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
+  @UseGuards(ThrottlerGuard)
   @Post()
   @ApiOperation({ summary: 'Create a new tenant (signup)' })
   @ApiBody({

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -13,7 +14,10 @@ describe('UsersController', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [{ provide: UsersService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = moduleRef.get(UsersController);
   });
