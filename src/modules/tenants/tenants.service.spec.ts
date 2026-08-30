@@ -6,12 +6,13 @@ import { Tenant } from './schemas/tenant.schema';
 
 describe('TenantsService', () => {
   let service: TenantsService;
-  let model: { findOne: jest.Mock; create: jest.Mock };
+  let model: { findOne: jest.Mock; create: jest.Mock; findById: jest.Mock };
 
   beforeEach(async () => {
     model = {
       findOne: jest.fn(),
       create: jest.fn(),
+      findById: jest.fn(),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -67,6 +68,25 @@ describe('TenantsService', () => {
       model.findOne.mockResolvedValue(null);
 
       const result = await service.findBySlug('missing');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findById', () => {
+    it('returns the tenant when found', async () => {
+      model.findById.mockResolvedValue({ _id: 'tenant-1', slug: 'acme' });
+
+      const result = await service.findById('tenant-1');
+
+      expect(model.findById).toHaveBeenCalledWith('tenant-1');
+      expect(result?.slug).toBe('acme');
+    });
+
+    it('returns null when no tenant matches', async () => {
+      model.findById.mockResolvedValue(null);
+
+      const result = await service.findById('missing');
 
       expect(result).toBeNull();
     });

@@ -1,13 +1,21 @@
-import { Module } from '@nestjs/common';
+import { ExecutionContext, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv, EnvConfig } from './config/env.validation';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { TenantsService } from './modules/tenants/tenants.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { CommonModule } from './modules/common/common.module';
 import { UsersModule } from './modules/users/users.module';
+import { RequestWithUser } from './modules/common/request-with-user';
+import {
+  RATE_LIMIT_TTL_MS,
+  PUBLIC_RATE_LIMIT,
+  getLimitForPlan,
+} from './modules/common/plan-limits';
 
 @Module({
   imports: [
@@ -25,6 +33,27 @@ import { UsersModule } from './modules/users/users.module';
     TenantsModule,
     AuthModule,
     UsersModule,
+    ThrottlerModule.forRootAsync({
+      imports: [TenantsModule],
+      inject: [TenantsService],
+      useFactory: (tenantsService: TenantsService) => ({
+        throttlers: [
+          {
+            ttl: RATE_LIMIT_TTL_MS,
+            limit: async (context: ExecutionContext) => {
+              const req = context.switchToHttp().getRequest<RequestWithUser>();
+              if (!req.user) {
+                return PUBLIC_RATE_LIMIT;
+              }
+              const tenant = await tenantsService.findById(req.user.tenantId);
+              return getLimitForPlan(tenant?.plan);
+            },
+          },
+        ],
+        getTracker: (req: RequestWithUser) =>
+          req.user?.tenantId ?? req.ip ?? 'unknown',
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

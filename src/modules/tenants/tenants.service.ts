@@ -27,4 +27,8 @@ export class TenantsService {
   async findBySlug(slug: string): Promise<TenantDocument | null> {
     return this.tenantModel.findOne({ slug });
   }
+
+  async findById(id: string): Promise<TenantDocument | null> {
+    return this.tenantModel.findById(id);
+  }
 }

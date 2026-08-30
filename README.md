@@ -27,13 +27,29 @@ This is a deliberate tradeoff:
 | `auth` | JWT auth (access + refresh), guards | Done |
 | `common` | Request-scoped tenant context + scoped query helper | Done |
 | `docs` | Swagger UI at `/docs`, Bearer auth wired for protected routes | Done |
-| `users` | User CRUD, invite flow, roles (owner/admin/member) | Planned |
+| `users` | User CRUD, invite flow, roles (owner/admin/member) | Done |
+| rate limiting | Per-tenant request limits based on plan (`@nestjs/throttler`) | Done |
 | `billing` | Stripe checkout + webhooks, plan sync | Planned |
 | `infra` (CDK) | Lambda + API Gateway deployment | Planned |
 
 ### Deployment model
 
 Deploys to **AWS Lambda behind API Gateway** (via `serverless-http` wrapping the Nest app), not an always-on Fargate/EC2 instance — this keeps the deployment inside the AWS always-free tier instead of accruing an hourly compute cost. Infrastructure is defined as AWS CDK (TypeScript) under `infra/` but is **not deployed automatically** — `cdk deploy` is a manual, explicit step so nothing incurs cost without you choosing to run it.
+
+### Rate limiting
+
+Every authenticated request is throttled **per tenant**, not per IP — a `free`-plan tenant hammering the API can't starve out other tenants sharing the same server, and two tenants on the same machine (e.g. local dev) get fully independent limits. Unauthenticated endpoints (`POST /tenants`, `/auth/register`, `/auth/login`, `/auth/refresh`) fall back to IP-based tracking, since there's no tenant yet.
+
+Limits are illustrative placeholders (not load-tested), one 60-second window for all tiers:
+
+| Tier | Requests / 60s |
+|---|---|
+| Unauthenticated | 10 |
+| `free` | 30 |
+| `pro` | 120 |
+| `enterprise` | 600 |
+
+The limit is read live from the tenant's current `plan` on every request (a `findById` lookup) rather than embedded in the JWT, so a plan upgrade/downgrade takes effect immediately instead of waiting for the access token to expire. Storage is in-memory (`@nestjs/throttler`'s default) — limits reset on server restart and aren't shared across multiple instances; fine for a single-instance deployment, would need a shared store (e.g. Redis) to scale horizontally.
 
 ## Local development
 

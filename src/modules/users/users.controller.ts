@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { inviteUserSchema } from './dto/invite-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,7 +22,7 @@ import { Roles } from '../common/roles.decorator';
 
 @ApiTags('users')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ThrottlerGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

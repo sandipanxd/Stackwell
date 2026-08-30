@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { loginSchema, refreshSchema, registerSchema } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -38,6 +39,7 @@ export class AuthController {
     private readonly tenantContext: TenantContextService,
   ) {}
 
+  @UseGuards(ThrottlerGuard)
   @Post('register')
   @ApiOperation({ summary: 'Register a new user under an existing tenant' })
   @ApiBody({ schema: credentialsBody })
@@ -52,6 +54,7 @@ export class AuthController {
     return this.authService.register(result.data);
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('login')
   @ApiOperation({ summary: 'Log in and receive an access/refresh token pair' })
   @ApiBody({
@@ -79,6 +82,7 @@ export class AuthController {
     return this.authService.login(result.data);
   }
 
+  @UseGuards(ThrottlerGuard)
   @Post('refresh')
   @ApiOperation({ summary: 'Exchange a refresh token for a new access token' })
   @ApiBody({
@@ -101,7 +105,7 @@ export class AuthController {
     return this.authService.refresh(result.data);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
   @ApiBearerAuth('access-token')
   @Get('me')
   @ApiOperation({
