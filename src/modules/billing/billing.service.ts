@@ -6,6 +6,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- the stripe package's CJS export has no `.default`, and this tsconfig lacks esModuleInterop, so a default import resolves to undefined at runtime.
 import Stripe = require('stripe');
 import { STRIPE_CLIENT } from './stripe-client.provider';
@@ -29,6 +31,8 @@ export class BillingService {
     @Inject(STRIPE_CLIENT) private readonly stripe: Stripe,
     private readonly tenantsService: TenantsService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    @InjectQueue('webhook-events')
+    private readonly webhookQueue: Queue<Stripe.Event>,
   ) {}
 
   async createCheckoutSession(
@@ -84,6 +88,10 @@ export class BillingService {
       throw new BadRequestException('Invalid Stripe webhook signature');
     }
 
+    await this.webhookQueue.add('process', event);
+  }
+
+  async processWebhookEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;

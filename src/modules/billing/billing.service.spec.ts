@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
 import { BillingService } from './billing.service';
 import { STRIPE_CLIENT } from './stripe-client.provider';
 import { TenantsService } from '../tenants/tenants.service';
@@ -18,6 +19,7 @@ describe('BillingService', () => {
   };
   let tenantsService: { findById: jest.Mock; updateBilling: jest.Mock };
   let configService: { get: jest.Mock };
+  let webhookQueue: { add: jest.Mock };
 
   beforeEach(async () => {
     stripe = {
@@ -36,6 +38,7 @@ describe('BillingService', () => {
         return values[key];
       }),
     };
+    webhookQueue = { add: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,6 +46,7 @@ describe('BillingService', () => {
         { provide: STRIPE_CLIENT, useValue: stripe },
         { provide: TenantsService, useValue: tenantsService },
         { provide: ConfigService, useValue: configService },
+        { provide: getQueueToken('webhook-events'), useValue: webhookQueue },
       ],
     }).compile();
 
@@ -133,7 +137,7 @@ describe('BillingService', () => {
     const rawBody = Buffer.from('{}');
     const signature = 'valid-signature';
 
-    it('throws BadRequestException when the signature is invalid', async () => {
+    it('throws BadRequestException when the signature is invalid, without enqueueing', async () => {
       stripe.webhooks.constructEvent.mockImplementation(() => {
         throw new Error('bad signature');
       });
@@ -141,10 +145,11 @@ describe('BillingService', () => {
       await expect(
         service.handleWebhookEvent(rawBody, signature),
       ).rejects.toThrow(BadRequestException);
+      expect(webhookQueue.add).not.toHaveBeenCalled();
     });
 
-    it('syncs the tenant plan on checkout.session.completed', async () => {
-      stripe.webhooks.constructEvent.mockReturnValue({
+    it('enqueues the verified event for processing instead of handling it inline', async () => {
+      const event = {
         type: 'checkout.session.completed',
         data: {
           object: {
@@ -153,9 +158,28 @@ describe('BillingService', () => {
             metadata: { tenantId: 'tenant-1', plan: 'pro' },
           },
         },
-      });
+      };
+      stripe.webhooks.constructEvent.mockReturnValue(event);
 
       await service.handleWebhookEvent(rawBody, signature);
+
+      expect(webhookQueue.add).toHaveBeenCalledWith('process', event);
+      expect(tenantsService.updateBilling).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('processWebhookEvent', () => {
+    it('syncs the tenant plan on checkout.session.completed', async () => {
+      await service.processWebhookEvent({
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            customer: 'cus_1',
+            subscription: 'sub_1',
+            metadata: { tenantId: 'tenant-1', plan: 'pro' },
+          },
+        },
+      } as never);
 
       expect(tenantsService.updateBilling).toHaveBeenCalledWith('tenant-1', {
         plan: 'pro',
@@ -165,7 +189,7 @@ describe('BillingService', () => {
     });
 
     it('syncs the tenant plan on customer.subscription.updated', async () => {
-      stripe.webhooks.constructEvent.mockReturnValue({
+      await service.processWebhookEvent({
         type: 'customer.subscription.updated',
         data: {
           object: {
@@ -174,9 +198,7 @@ describe('BillingService', () => {
             metadata: { tenantId: 'tenant-1', plan: 'enterprise' },
           },
         },
-      });
-
-      await service.handleWebhookEvent(rawBody, signature);
+      } as never);
 
       expect(tenantsService.updateBilling).toHaveBeenCalledWith('tenant-1', {
         plan: 'enterprise',
@@ -186,16 +208,14 @@ describe('BillingService', () => {
     });
 
     it('downgrades the tenant to free on customer.subscription.deleted', async () => {
-      stripe.webhooks.constructEvent.mockReturnValue({
+      await service.processWebhookEvent({
         type: 'customer.subscription.deleted',
         data: {
           object: {
             metadata: { tenantId: 'tenant-1' },
           },
         },
-      });
-
-      await service.handleWebhookEvent(rawBody, signature);
+      } as never);
 
       expect(tenantsService.updateBilling).toHaveBeenCalledWith('tenant-1', {
         plan: 'free',
@@ -204,12 +224,10 @@ describe('BillingService', () => {
     });
 
     it('no-ops on unhandled event types', async () => {
-      stripe.webhooks.constructEvent.mockReturnValue({
+      await service.processWebhookEvent({
         type: 'invoice.paid',
         data: { object: {} },
-      });
-
-      await service.handleWebhookEvent(rawBody, signature);
+      } as never);
 
       expect(tenantsService.updateBilling).not.toHaveBeenCalled();
     });
