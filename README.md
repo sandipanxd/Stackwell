@@ -30,6 +30,7 @@ This is a deliberate tradeoff:
 | `users` | User CRUD, invite flow, roles (owner/admin/member) | Done |
 | rate limiting | Per-tenant request limits based on plan (`@nestjs/throttler`) | Done |
 | `billing` | Stripe checkout + webhooks, plan sync | Done |
+| background jobs | BullMQ + Redis queues for invite emails and webhook processing | Done |
 | `infra` (CDK) | Lambda + API Gateway deployment | Planned |
 
 ### Deployment model
@@ -57,10 +58,21 @@ Plan upgrades go through **Stripe Checkout** (test mode) — `POST /billing/chec
 
 The webhook routes by **metadata embedded at checkout time** (`{ tenantId, plan }`, copied onto the resulting Subscription too), not by mapping Stripe Price IDs back to plan tiers — so the handler never needs its own copy of that mapping.
 
+`POST /billing/webhook` only verifies the Stripe signature synchronously and responds immediately — the actual plan sync happens on a background queue (see below), so a slow or transiently-failing DB write can't hold up Stripe's webhook delivery or trigger Stripe's own retry-storm behavior.
+
 To actually use this locally, you need your own Stripe test-mode setup (not included, since this is a shared boilerplate — nobody should ship real API keys in a repo):
 1. Create a free Stripe account, get test-mode keys from `dashboard.stripe.com/test/apikeys` → `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` in `.env` (see `.env.example`).
 2. Create two Products/Prices in the test dashboard for `pro` and `enterprise` → set `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE`. Both are optional; without them, `/billing/checkout` returns a clear `503` naming the missing var instead of failing confusingly.
 3. To receive webhooks locally, install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and run `stripe listen --forward-to localhost:3000/billing/webhook` — it prints a session-specific webhook secret to use in place of the one in `.env` while testing.
+
+### Background jobs
+
+Two BullMQ queues run on the Redis instance already started by `docker-compose`:
+
+- **`mail`** — `POST /users/invite` enqueues an invite notification instead of sending it inline. There's no real email provider wired up (no SMTP/SendGrid credentials to ship in a boilerplate), so the worker logs the would-be email — this demonstrates the producer/consumer architecture without needing third-party credentials nobody has. Swap the processor's body for a real provider call when you have one.
+- **`webhook-events`** — every verified Stripe webhook event is processed here rather than inline in the request (see Billing above), with real retry behavior: `attempts: 3` with exponential backoff, so a transient MongoDB failure during plan sync retries automatically instead of silently dropping the update.
+
+Both run as in-process BullMQ workers — no separate worker process to start, they spin up alongside the API server.
 
 ## Local development
 

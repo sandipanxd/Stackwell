@@ -4,6 +4,8 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { TenantContextService } from '../common/tenant-context.service';
+import { TenantsService } from '../tenants/tenants.service';
+import { MailService } from '../mail/mail.service';
 import { InviteUserDto } from './dto/invite-user.dto';
 
 const SALT_ROUNDS = 10;
@@ -13,6 +15,8 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly tenantContext: TenantContextService,
+    private readonly tenantsService: TenantsService,
+    private readonly mailService: MailService,
   ) {}
 
   async findAllForTenant(): Promise<UserDocument[]> {
@@ -31,12 +35,23 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
 
-    return this.userModel.create(
+    const user = await this.userModel.create(
       this.tenantContext.scope({
         email: dto.email,
         passwordHash,
         role: dto.role,
       }),
     );
+
+    const tenant = await this.tenantsService.findById(
+      this.tenantContext.getTenantId(),
+    );
+    await this.mailService.queueInviteEmail({
+      email: dto.email,
+      tenantName: tenant?.name ?? 'your team',
+      role: dto.role,
+    });
+
+    return user;
   }
 }

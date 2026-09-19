@@ -2,6 +2,8 @@ import { ExecutionContext, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { BullModule } from '@nestjs/bullmq';
+import Redis from 'ioredis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv, EnvConfig } from './config/env.validation';
@@ -35,6 +37,14 @@ import {
     AuthModule,
     UsersModule,
     BillingModule,
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<EnvConfig, true>) => ({
+        connection: new Redis(config.get('REDIS_URL', { infer: true }), {
+          maxRetriesPerRequest: null,
+        }),
+      }),
+    }),
     ThrottlerModule.forRootAsync({
       imports: [TenantsModule],
       inject: [TenantsService],

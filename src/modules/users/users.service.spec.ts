@@ -6,6 +6,8 @@ import { Types } from 'mongoose';
 import { UsersService } from './users.service';
 import { User } from './schemas/user.schema';
 import { TenantContextService } from '../common/tenant-context.service';
+import { TenantsService } from '../tenants/tenants.service';
+import { MailService } from '../mail/mail.service';
 
 jest.mock('bcrypt');
 
@@ -13,6 +15,8 @@ describe('UsersService', () => {
   let service: UsersService;
   let userModel: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock };
   let tenantContext: { getTenantId: jest.Mock; scope: jest.Mock };
+  let tenantsService: { findById: jest.Mock };
+  let mailService: { queueInviteEmail: jest.Mock };
 
   const tenantId = new Types.ObjectId().toString();
 
@@ -25,12 +29,18 @@ describe('UsersService', () => {
         tenantId,
       })),
     };
+    tenantsService = {
+      findById: jest.fn().mockResolvedValue({ name: 'Acme' }),
+    };
+    mailService = { queueInviteEmail: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: getModelToken(User.name), useValue: userModel },
         { provide: TenantContextService, useValue: tenantContext },
+        { provide: TenantsService, useValue: tenantsService },
+        { provide: MailService, useValue: mailService },
       ],
     }).compile();
 
@@ -89,6 +99,11 @@ describe('UsersService', () => {
         role: 'admin',
       });
       expect(result.email).toBe('admin@acme.com');
+      expect(mailService.queueInviteEmail).toHaveBeenCalledWith({
+        email: 'admin@acme.com',
+        tenantName: 'Acme',
+        role: 'admin',
+      });
     });
 
     it('throws ConflictException when the email is already used in this tenant', async () => {
@@ -103,6 +118,7 @@ describe('UsersService', () => {
         }),
       ).rejects.toThrow(ConflictException);
       expect(userModel.create).not.toHaveBeenCalled();
+      expect(mailService.queueInviteEmail).not.toHaveBeenCalled();
     });
   });
 });
