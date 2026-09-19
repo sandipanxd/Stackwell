@@ -13,6 +13,8 @@ export const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  STRIPE_PRICE_PRO: z.string().min(1).optional(),
+  STRIPE_PRICE_ENTERPRISE: z.string().min(1).optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

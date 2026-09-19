@@ -29,7 +29,7 @@ This is a deliberate tradeoff:
 | `docs` | Swagger UI at `/docs`, Bearer auth wired for protected routes | Done |
 | `users` | User CRUD, invite flow, roles (owner/admin/member) | Done |
 | rate limiting | Per-tenant request limits based on plan (`@nestjs/throttler`) | Done |
-| `billing` | Stripe checkout + webhooks, plan sync | Planned |
+| `billing` | Stripe checkout + webhooks, plan sync | Done |
 | `infra` (CDK) | Lambda + API Gateway deployment | Planned |
 
 ### Deployment model
@@ -50,6 +50,17 @@ Limits are illustrative placeholders (not load-tested), one 60-second window for
 | `enterprise` | 600 |
 
 The limit is read live from the tenant's current `plan` on every request (a `findById` lookup) rather than embedded in the JWT, so a plan upgrade/downgrade takes effect immediately instead of waiting for the access token to expire. Storage is in-memory (`@nestjs/throttler`'s default) — limits reset on server restart and aren't shared across multiple instances; fine for a single-instance deployment, would need a shared store (e.g. Redis) to scale horizontally.
+
+### Billing
+
+Plan upgrades go through **Stripe Checkout** (test mode) — `POST /billing/checkout` (tenant owner only) creates a Checkout Session for `pro` or `enterprise` and returns its URL. Stripe calls back to `POST /billing/webhook` on `checkout.session.completed`, `customer.subscription.updated`, and `customer.subscription.deleted` to keep the tenant's `plan` in sync (an upgrade, a Stripe-dashboard plan change, and a cancellation all flow through the same handler). `invoice.paid` and any other event type are acknowledged with 200 but otherwise ignored — usage-based billing off invoices isn't built.
+
+The webhook routes by **metadata embedded at checkout time** (`{ tenantId, plan }`, copied onto the resulting Subscription too), not by mapping Stripe Price IDs back to plan tiers — so the handler never needs its own copy of that mapping.
+
+To actually use this locally, you need your own Stripe test-mode setup (not included, since this is a shared boilerplate — nobody should ship real API keys in a repo):
+1. Create a free Stripe account, get test-mode keys from `dashboard.stripe.com/test/apikeys` → `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` in `.env` (see `.env.example`).
+2. Create two Products/Prices in the test dashboard for `pro` and `enterprise` → set `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE`. Both are optional; without them, `/billing/checkout` returns a clear `503` naming the missing var instead of failing confusingly.
+3. To receive webhooks locally, install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and run `stripe listen --forward-to localhost:3000/billing/webhook` — it prints a session-specific webhook secret to use in place of the one in `.env` while testing.
 
 ## Local development
 

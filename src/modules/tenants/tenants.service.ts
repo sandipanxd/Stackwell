@@ -31,4 +31,13 @@ export class TenantsService {
   async findById(id: string): Promise<TenantDocument | null> {
     return this.tenantModel.findById(id);
   }
+
+  async updateBilling(
+    id: string,
+    updates: Partial<
+      Pick<Tenant, 'plan' | 'stripeCustomerId' | 'stripeSubscriptionId'>
+    >,
+  ): Promise<TenantDocument | null> {
+    return this.tenantModel.findByIdAndUpdate(id, updates, { new: true });
+  }
 }

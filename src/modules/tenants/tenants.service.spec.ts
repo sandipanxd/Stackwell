@@ -6,13 +6,19 @@ import { Tenant } from './schemas/tenant.schema';
 
 describe('TenantsService', () => {
   let service: TenantsService;
-  let model: { findOne: jest.Mock; create: jest.Mock; findById: jest.Mock };
+  let model: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+    findById: jest.Mock;
+    findByIdAndUpdate: jest.Mock;
+  };
 
   beforeEach(async () => {
     model = {
       findOne: jest.fn(),
       create: jest.fn(),
       findById: jest.fn(),
+      findByIdAndUpdate: jest.fn(),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -87,6 +93,42 @@ describe('TenantsService', () => {
       model.findById.mockResolvedValue(null);
 
       const result = await service.findById('missing');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('updateBilling', () => {
+    it('updates the given billing fields and returns the updated tenant', async () => {
+      model.findByIdAndUpdate.mockResolvedValue({
+        _id: 'tenant-1',
+        plan: 'pro',
+        stripeCustomerId: 'cus_123',
+        stripeSubscriptionId: 'sub_123',
+      });
+
+      const result = await service.updateBilling('tenant-1', {
+        plan: 'pro',
+        stripeCustomerId: 'cus_123',
+        stripeSubscriptionId: 'sub_123',
+      });
+
+      expect(model.findByIdAndUpdate).toHaveBeenCalledWith(
+        'tenant-1',
+        {
+          plan: 'pro',
+          stripeCustomerId: 'cus_123',
+          stripeSubscriptionId: 'sub_123',
+        },
+        { new: true },
+      );
+      expect(result?.plan).toBe('pro');
+    });
+
+    it('returns null when the tenant does not exist', async () => {
+      model.findByIdAndUpdate.mockResolvedValue(null);
+
+      const result = await service.updateBilling('missing', { plan: 'free' });
 
       expect(result).toBeNull();
     });

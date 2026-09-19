@@ -10,6 +10,7 @@ import { TenantsService } from './modules/tenants/tenants.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { CommonModule } from './modules/common/common.module';
 import { UsersModule } from './modules/users/users.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { RequestWithUser } from './modules/common/request-with-user';
 import {
   RATE_LIMIT_TTL_MS,
@@ -33,6 +34,7 @@ import {
     TenantsModule,
     AuthModule,
     UsersModule,
+    BillingModule,
     ThrottlerModule.forRootAsync({
       imports: [TenantsModule],
       inject: [TenantsService],
