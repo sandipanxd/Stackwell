@@ -30,4 +30,20 @@ describe('validateEnv', () => {
       validateEnv({ ...validConfig, JWT_ACCESS_SECRET: 'too-short' }),
     ).toThrow('Invalid environment configuration');
   });
+
+  it('leaves STRIPE_PRICE_PRO and STRIPE_PRICE_ENTERPRISE undefined when not set', () => {
+    const result = validateEnv(validConfig);
+    expect(result.STRIPE_PRICE_PRO).toBeUndefined();
+    expect(result.STRIPE_PRICE_ENTERPRISE).toBeUndefined();
+  });
+
+  it('accepts STRIPE_PRICE_PRO and STRIPE_PRICE_ENTERPRISE when set', () => {
+    const result = validateEnv({
+      ...validConfig,
+      STRIPE_PRICE_PRO: 'price_pro_123',
+      STRIPE_PRICE_ENTERPRISE: 'price_enterprise_123',
+    });
+    expect(result.STRIPE_PRICE_PRO).toBe('price_pro_123');
+    expect(result.STRIPE_PRICE_ENTERPRISE).toBe('price_enterprise_123');
+  });
 });

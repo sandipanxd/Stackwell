@@ -18,6 +18,12 @@ export class Tenant {
     default: 'free',
   })
   plan: TenantPlan;
+
+  @Prop()
+  stripeCustomerId?: string;
+
+  @Prop()
+  stripeSubscriptionId?: string;
 }
 
 export const TenantSchema = SchemaFactory.createForClass(Tenant);
