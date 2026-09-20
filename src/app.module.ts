@@ -3,7 +3,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
-import Redis from 'ioredis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv, EnvConfig } from './config/env.validation';
@@ -39,11 +38,24 @@ import {
     BillingModule,
     BullModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService<EnvConfig, true>) => ({
-        connection: new Redis(config.get('REDIS_URL', { infer: true }), {
-          maxRetriesPerRequest: null,
-        }),
-      }),
+      useFactory: (config: ConfigService<EnvConfig, true>) => {
+        // Pass connection options, not a pre-built ioredis client: BullMQ only
+        // closes connections it constructs itself from options. A shared
+        // client we build is treated as caller-owned and never gets closed on
+        // module destroy, which leaves the event loop open indefinitely
+        // (breaks graceful shutdown and hangs anything that calls app.close(),
+        // e.g. e2e tests).
+        const redisUrl = new URL(config.get('REDIS_URL', { infer: true }));
+        return {
+          connection: {
+            host: redisUrl.hostname,
+            port: Number(redisUrl.port) || 6379,
+            username: redisUrl.username || undefined,
+            password: redisUrl.password || undefined,
+            maxRetriesPerRequest: null,
+          },
+        };
+      },
     }),
     ThrottlerModule.forRootAsync({
       imports: [TenantsModule],
