@@ -171,11 +171,15 @@ Built test-first (Red-Green-Refactor) per module — every service/controller ha
 
 ```bash
 npm run test        # unit tests (currently 71, all passing)
-npm run test:e2e    # end-to-end test against the real Nest app (needs Docker Mongo/Redis running)
+npm run test:e2e    # end-to-end tests against the real Nest app (needs Docker Mongo/Redis + a .env.test — see below)
 npm run test:cov    # coverage report (target: 80%+ on changed files)
 ```
 
 Unit tests are the correctness net for logic; they don't catch wiring mistakes (wrong DI token, a library's CJS export not matching its type declarations, a guard reading a header before the previous guard populated it). Every module in this repo was also boot-tested and exercised live against real Docker Mongo/Redis/Stripe-test-mode before being considered done — that's how several real bugs got caught that mocked unit tests couldn't have (see [Known limitations](#known-limitations) and the git history for specifics: a Stripe SDK import that resolved to `undefined` at runtime, a tenant-scoping bug where `ObjectId` vs `string` comparison silently dropped a tenant's owner from every list query, and a BullMQ connection that kept the process alive forever because it wasn't one BullMQ itself had opened).
+
+**E2e suite** (`test/*.e2e-spec.ts`) turns that manual live-verification habit into an automated regression check: it boots the real `AppModule` and drives full HTTP flows against real Docker Mongo/Redis — tenant signup → register (owner) → login → refresh → `/auth/me`, invite/RBAC across owner/admin/member with cross-tenant isolation, and billing's auth/role gating plus webhook signature verification. Two things are deliberately faked out, consistent with the module addenda above: `ThrottlerGuard` is overridden (same `.overrideGuard()` pattern as the unit tests) so the suite isn't rate-limited by its own requests, and there's no real Stripe checkout call — the billing spec only exercises paths that don't need one (401/403 gating, the 503 "plan not configured" branch, and local webhook-signature rejection).
+
+Setup: copy `.env.test.example` to `.env.test` (points at a separate `stackwell-e2e` Mongo DB and Redis logical DB `1`, so it never collides with your dev data or queues) — Docker Mongo/Redis must already be running (`docker compose up -d`).
 
 ## Cost notes
 
